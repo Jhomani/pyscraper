@@ -3,10 +3,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 
-def test_eight_components():
-  driver = webdriver.Firefox(service=Service(executable_path='/home/jhomani/projects/python/geckodriver'))
+drive_path = '/home/jhomani/projects/python/geckodriver'
+uri = "https://www.bing.com/translator"
 
-  driver.get("https://www.bing.com/translator")
+def config():
+  driver = webdriver.Firefox(service=Service(executable_path=drive_path))
+
+  driver.get(uri)
   driver.implicitly_wait(0.5)
 
   src_options = driver.find_element(by=By.ID, value="tta_srcsl")
@@ -16,35 +19,42 @@ def test_eight_components():
 
   src_options = driver.find_element(by=By.ID, value="tta_tgtsl")
   src_options.click()
-  option = src_options.find_element(by=By.CSS_SELECTOR, value="option[value=ca]")
+  option = src_options.find_element(by=By.CSS_SELECTOR, value="option[value=en]")
   option.click()
 
+  return driver
+
+wait_translation = lambda d : d.find_element(
+  By.CSS_SELECTOR,
+  "div[class=tta_playc]"
+)
+
+def translate_phrases(phrases = []):
+  translated = []
+
+  driver = config()
+
   text_box = driver.find_element(by=By.ID, value="tta_input_ta")
-
-  large_text = "En ese ejemplo, pasamos una función anónima (pero también podríamos definirla explícitamente como lo hicimos anteriormente para que pueda ser reutilizada). El primer y único argumento que se pasa a nuestra condición es siempre una referencia a nuestro objeto controlador, WebDriver. En un entorno de subprocesos múltiples, debe tener cuidado de operar con la referencia del controlador pasada a la condición en lugar de la referencia al controlador en el ámbito externo."
-
-  text_box.send_keys(large_text)
-
-  WebDriverWait(driver, timeout=5).until(lambda d: d.find_element(By.CLASS_NAME,"tta_playc"))
-
   target_box = driver.find_element(by=By.ID, value="tta_output_ta")
+  clear_btn = driver.find_element(by=By.ID, value="tta_clear")
 
-  # for el in spans_with_target:
-  print(target_box.get_attribute('value'))
+  for item in phrases:
+    text_box.send_keys(item)
 
-  # submit_button = driver.find_element(by=By.CSS_SELECTOR, value="button")
+    WebDriverWait(driver, timeout=5).until(wait_translation)
 
+    translated.append(target_box.get_attribute('value'))
 
-  # submit_button.click()
-
-  # message = driver.find_element(by=By.ID, value="message")
-
-  # value = message.text
-
-  # print(value)
-
-  # assert value == "Received!"
+    clear_btn.click()
 
   driver.quit()
 
-test_eight_components()
+  return translated
+
+target_list = [
+  "En ese ejemplo, pasamos una función anónima.",
+  "Esto no es ejemplo, pasamos una función anónima.",
+  "Amo los ejemplo, pasamos una función anónima.",
+]
+
+print(translate_phrases(target_list))
