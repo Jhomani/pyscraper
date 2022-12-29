@@ -7,21 +7,49 @@ mydb = mysql.connector.connect(
   database="xcelence"
 )
 
-table='binary_dictionary'
+class MySQL:
+  cursor = None
+  model = ''
 
-cursor = mydb.cursor()
-cursor.execute(f'SELECT id, primary_ES FROM {table} LIMIT 2')
+  def __init__(s, model, lang = 'CA'):
+    s.model = model
+    s.lang = lang
 
-myresult = cursor.fetchall()
+  def init(s):
+    s.cursor = mydb.cursor()
 
-for x in myresult:
-  translation = translator.translate(x[1])
-  translation = translation.replace('&#39;', "'") 
-  cursor.execute(
-    f'UPDATE {table} SET primary_CA = %s WHERE id = %s',
-    (translation, x[0])
-  )
+  def update(s, values):
+    fields = ''
+    excepted = s.getFields()
+      
+    for item in excepted:
+      fields += f'{item}_{s.lang} = %s,'
 
-  print(f"{table}:  {x[0]}  {translation}  ✓")
+    fields = fields[0:-1]
 
-mydb.commit()
+    s.cursor.execute(f'UPDATE {s.model} SET {fields} WHERE id = %s', values)
+
+  def create(s, values):
+    builded = ''
+
+    for _ in values:
+      builded += '%s,'
+
+    builded = builded[0:-1]
+
+    s.cursor.execute(f'INSERT INTO {s.model}_dic VALUES({builded});', values)
+
+  def fetch(s):
+    subquery = f'(SELECT {s.model}_id FROM {s.model}_dic WHERE language_id = 2)'
+
+    s.cursor.execute(f'''
+      SELECT * FROM {s.model}_dic
+      WHERE
+        language_id = 1 AND
+        {s.model}_id NOT IN {subquery};
+    ''')
+
+    return s.cursor.fetchall()
+
+  def commit(seft):
+    mydb.commit()

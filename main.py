@@ -1,60 +1,91 @@
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 
-drive_path = '/home/jhomani/projects/python/geckodriver'
-uri = "https://www.bing.com/translator"
+from sql_connector import MySQL
 
-def config():
-  driver = webdriver.Firefox(service=Service(executable_path=drive_path))
+driver_path = 'C:\\Users\\Rene\\projects\\python\\scraper\\chromedriver.exe'
 
-  driver.get(uri)
+def innit_driver():
+  driver = webdriver.Chrome(service=Service(executable_path=driver_path))
+
+  driver.get("https://www.bing.com/translator")
   driver.implicitly_wait(0.5)
 
   src_options = driver.find_element(by=By.ID, value="tta_srcsl")
   src_options.click()
-  option = src_options.find_element(by=By.CSS_SELECTOR, value="option[value=es]")
-  option.click()
+  src_options.find_element(by=By.CSS_SELECTOR, value="option[value=es]").click()
 
   src_options = driver.find_element(by=By.ID, value="tta_tgtsl")
   src_options.click()
-  option = src_options.find_element(by=By.CSS_SELECTOR, value="option[value=en]")
-  option.click()
+  src_options.find_element(by=By.CSS_SELECTOR, value="option[value=ca]").click()
 
   return driver
 
-wait_translation = lambda d : d.find_element(
-  By.CSS_SELECTOR,
-  "div[class=tta_playc]"
-)
+wait_translation = lambda d : d.find_element(By.CSS_SELECTOR, "div[class=tta_playc]")
 
-def translate_phrases(phrases = []):
-  translated = []
+models = [
+  "answer",
+  "community",
+  "content",
+  "course",
+  "feedback",
+  "key",
+  "material_type",
+  "perspective",
+  "province",
+  "question",
+  "resource",
+  "sub_answer",
+  "toolkit",
+] 
 
-  driver = config()
+lang = {
+  1: "ES",
+  2: "CA",
+}
 
-  text_box = driver.find_element(by=By.ID, value="tta_input_ta")
-  target_box = driver.find_element(by=By.ID, value="tta_output_ta")
+def translate_phrases():
+  driver = innit_driver()
+
+  input_box = driver.find_element(by=By.ID, value="tta_input_ta")
+  output_box = driver.find_element(by=By.ID, value="tta_output_ta")
   clear_btn = driver.find_element(by=By.ID, value="tta_clear")
 
-  for item in phrases:
-    text_box.send_keys(item)
+  sql = MySQL('answer')
+  sql.init()
+  tuples = sql.fetch()
 
-    WebDriverWait(driver, timeout=5).until(wait_translation)
+  count = 0
 
-    translated.append(target_box.get_attribute('value'))
+  for item in tuples:
+    values = []
 
-    clear_btn.click()
+    for i, value in enumerate(item):
+      localed = value
 
+      if(i == 0):
+        localed = 2
+
+      if(type(localed) == str and len(localed) > 2):
+        input_box.send_keys(value)
+        WebDriverWait(driver, timeout=60).until(wait_translation)
+        localed = output_box.get_attribute('value')
+        
+        clear_btn.click()
+
+      values.append(localed)
+
+    sql.create(tuple(values))
+    count += 1
+    print(count)
+
+    if(count % 5 == 0):
+      sql.commit()
+
+  if(count % 5 != 0):
+    sql.commit()
   driver.quit()
 
-  return translated
-
-target_list = [
-  "En ese ejemplo, pasamos una función anónima.",
-  "Esto no es ejemplo, pasamos una función anónima.",
-  "Amo los ejemplo, pasamos una función anónima.",
-]
-
-print(translate_phrases(target_list))
+translate_phrases()
